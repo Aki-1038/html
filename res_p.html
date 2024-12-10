@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>並聯電阻計算器</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .resistor-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .resistor-row input {
+            margin-right: 10px;
+            width: 200px; /* 設定輸入框寬度為200px */
+        }
+        .resistor-row select {
+            margin-right: 10px;
+            width: 100px; /* 設定輸入框寬度為100px */
+        }
+        .resistor-row button {
+            margin-left: 10px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">並聯電阻計算器</h1>
+        <div id="resistors">
+            <div class="resistor-row">
+                <input type="number" class="form-control" placeholder="R1" id="R1" min="0.01">
+                <select class="form-control" id="unit1">
+                    <option value="0.001">mΩ</option>
+                    <option value="1">Ω</option>
+                    <option value="1000" selected>KΩ</option> <!-- 預設選項為KΩ -->
+                    <option value="1000000">MΩ</option>
+                </select>
+            </div>
+            <div class="resistor-row">
+                <input type="number" class="form-control" placeholder="R2" id="R2" min="0.01">
+                <select class="form-control" id="unit2">
+                    <option value="0.001">mΩ</option>
+                    <option value="1">Ω</option>
+                    <option value="1000" selected>KΩ</option> <!-- 預設選項為KΩ -->
+                    <option value="1000000">MΩ</option>
+                </select>
+                <button class="btn btn-danger" onclick="removeResistor(this)">刪除</button>
+            </div>
+        </div>
+        <button class="btn btn-primary mt-3" onclick="addResistor()">新增電阻</button>
+        <button class="btn btn-success mt-3" onclick="calculate()">計算</button>
+        <h2 class="mt-3">總電阻: <span id="result">0</span> Ω</h2>
+        <div id="error-message" class="error"></div>
+    </div>
+
+    <script>
+        function addResistor() {
+            const resistorsDiv = document.getElementById('resistors');
+            const newIndex = resistorsDiv.children.length + 1;
+            const newResistor = document.createElement('div');
+            newResistor.className = 'resistor-row';
+            newResistor.innerHTML = `
+                <input type="number" class="form-control" placeholder="R${newIndex}" min="0.01" style="width: 200px;">
+                <select class="form-control" style="width: 100px;">
+                    <option value="0.001">mΩ</option>
+                    <option value="1">Ω</option>
+                    <option value="1000" selected>KΩ</option> <!-- 預設選項為KΩ -->
+                    <option value="1000000">MΩ</option>
+                </select>
+                <button class="btn btn-danger" onclick="removeResistor(this)">刪除</button>
+            `;
+            resistorsDiv.appendChild(newResistor);
+        }
+
+        function removeResistor(button) {
+            const resistorsDiv = document.getElementById('resistors');
+            resistorsDiv.removeChild(button.parentElement);
+            updateResistorLabels();
+        }
+
+        function updateResistorLabels() {
+            const resistorsDiv = document.getElementById('resistors');
+            const resistorRows = resistorsDiv.getElementsByClassName('resistor-row');
+            for (let i = 0; i < resistorRows.length; i++) {
+                const input = resistorRows[i].getElementsByTagName('input')[0];
+                input.placeholder = `R${i + 1}`;
+            }
+        }
+
+        function calculate() {
+            const resistorsDiv = document.getElementById('resistors');
+            const resistorRows = resistorsDiv.getElementsByClassName('resistor-row');
+            let totalReciprocal = 0;
+            let hasError = false;
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.innerText = '';
+
+            for (let i = 0; i < resistorRows.length; i++) {
+                const input = resistorRows[i].getElementsByTagName('input')[0];
+                const select = resistorRows[i].getElementsByTagName('select')[0];
+                const value = parseFloat(input.value);
+                const unit = parseFloat(select.value);
+                if (isNaN(value) || value <= 0) {
+                    errorMessage.innerText = '所有電阻值必須大於0';
+                    hasError = true;
+                    break;
+                }
+                totalReciprocal += 1 / (value * unit);
+            }
+
+            if (!hasError) {
+                const totalResistance = 1 / totalReciprocal;
+                document.getElementById('result').innerText = totalResistance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        }
+    </script>
+</body>
+</html>
