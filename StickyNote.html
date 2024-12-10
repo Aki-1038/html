@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-Tw">
+<head>
+    <meta charset="UTF-8">
+    <title>Sticky Notes - 便利貼程式</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            background-color: #f0f0f0;
+        }
+        #stickyNotes {
+            position: relative;
+            padding: 20px;
+        }
+        .note {
+            background-color: #ffeb3b;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            width: 200px;
+            position: absolute;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            cursor: move;
+            transition: all 0.3s ease;
+        }
+        .note textarea {
+            width: 100%;
+            height: 100px;
+            border: none;
+            background: transparent;
+            resize: none;
+        }
+        .delete-btn {
+            display: none;
+        }
+        .note-info {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            font-size: 12px;
+            color: #333;
+        }
+        #addNoteBtn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+        .color-picker {
+            position: absolute;
+            bottom: 3px;
+            left: 3px;
+        }
+        .note:hover {
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3);
+            transform: scale(1.02);
+            transition: all 0.2s ease;
+        }
+        .delete-btn:hover {
+            color: darkred;
+        }
+        .note.active {
+            z-index: 1000;
+        }
+        .trash-bin {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background-color: #ff4444;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.3s ease;
+        }
+        .trash-bin i {
+            color: white;
+            font-size: 24px;
+        }
+        .trash-bin.drag-over {
+            transform: scale(1.2);
+            background-color: #cc0000;
+        }
+        @media (max-width: 768px) {
+            .note {
+                width: calc(100% - 40px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div id="trashBin" class="trash-bin">
+            <i class="fas fa-trash-alt"></i>
+        </div>
+        <h1 class="text-center">Sticky Notes</h1>
+        <div id="stickyNotes" role="region" aria-label="便利貼區域" class="mt-4"></div>
+        <button id="addNoteBtn" class="btn btn-primary mt-3">新增便利貼</button>
+    </div>
+
+    <script>
+        const stickyNotesContainer = document.getElementById('stickyNotes');
+        const addNoteBtn = document.getElementById('addNoteBtn');
+        const trashBin = document.getElementById('trashBin');
+
+        // 創建便利貼元素
+        function createNoteElement(text = '', left = null, top = null, index = 1, color = '#ffeb3b', createdAt = new Date().toLocaleString()) {
+            const note = document.createElement('div');
+            note.className = 'note';
+            note.draggable = true;
+
+            note.style.backgroundColor = color;
+
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.oninput = () => {
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(saveNotes, 1000);
+            };
+            textarea.setAttribute('aria-label', '便利貼內容');
+
+            const noteInfo = document.createElement('div');
+            noteInfo.className = 'note-info';
+            noteInfo.innerText = `#${index}`;
+
+            const dateInfo = document.createElement('div');
+            dateInfo.className = 'date-info';
+            dateInfo.innerText = createdAt;
+            dateInfo.style.position = 'absolute';
+            dateInfo.style.top = '5px';
+            dateInfo.style.left = '5px';
+            dateInfo.style.fontSize = '10px';
+            dateInfo.style.color = '#333';
+
+            const colorPicker = document.createElement('input');
+            colorPicker.type = 'color';
+            colorPicker.className = 'color-picker';
+            colorPicker.value = color;
+            colorPicker.oninput = (e) => {
+                note.style.backgroundColor = e.target.value;
+                saveNotes();
+            };
+
+            note.appendChild(textarea);
+            note.appendChild(noteInfo);
+            note.appendChild(dateInfo);
+            note.appendChild(colorPicker);
+            stickyNotesContainer.appendChild(note);
+
+            if (left !== null && top !== null) {
+                note.style.left = `${left}px`;
+                note.style.top = `${top}px`;
+            } else {
+                const notes = document.querySelectorAll('.note');
+                const offset = 200;
+                const index = notes.length - 1;
+                left = (index * offset) % (window.innerWidth - 200);
+                top = Math.floor((index * offset) / (window.innerWidth - 200)) * offset;
+                note.style.left = `${left}px`;
+                note.style.top = `${top}px`;
+            }
+
+            updateNoteInfo(note, index);
+
+            note.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', null);
+                note.classList.add('dragging');
+            };
+
+            note.ondragend = (e) => {
+                note.classList.remove('dragging');
+                const rect = stickyNotesContainer.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left - note.clientWidth / 2;
+                const offsetY = e.clientY - rect.top - note.clientHeight / 2;
+                note.style.left = `${offsetX}px`;
+                note.style.top = `${offsetY}px`;
+                updateNoteInfo(note, index);
+                saveNotes();
+            };
+
+            note.ondblclick = () => {
+                textarea.focus();
+            };
+        }
+
+        // 更新便利貼資訊
+        function updateNoteInfo(note, index) {
+            const noteInfo = note.querySelector('.note-info');
+            const left = parseFloat(note.style.left);
+            const top = parseFloat(note.style.top);
+            noteInfo.innerText = `#${index}`;
+        }
+
+        // 儲存便利貼
+        function saveNotes() {
+            const notes = Array.from(document.querySelectorAll('.note')).map(note => {
+                const textarea = note.querySelector('textarea');
+                const colorPicker = note.querySelector('.color-picker');
+                const dateInfo = note.querySelector('.date-info');
+                return {
+                    text: textarea.value,
+                    left: parseFloat(note.style.left),
+                    top: parseFloat(note.style.top),
+                    color: colorPicker.value,
+                    createdAt: dateInfo.innerText
+                };
+            });
+            localStorage.setItem('stickyNotes', JSON.stringify(notes));
+        }
+
+        // 載入便利貼
+        function loadNotes() {
+            const notes = JSON.parse(localStorage.getItem('stickyNotes')) || [];
+            notes.forEach((note, index) => createNoteElement(note.text, note.left, note.top, index + 1, note.color, note.createdAt));
+        }
+
+        // 新增便利貼按鈕點擊事件
+        addNoteBtn.onclick = () => {
+            const notes = document.querySelectorAll('.note');
+            createNoteElement('', null, null, notes.length + 1);
+        };
+
+        loadNotes();
+
+        // 刪除便利貼
+        function deleteNote(note) {
+            if (confirm('確定要刪除這個便利貼嗎？')) {
+                note.style.transition = 'opacity 0.3s';
+                note.style.opacity = '0';
+                setTimeout(() => {
+                    note.remove();
+                    saveNotes();
+                    updateAllNotesIndexes();
+                }, 300);
+            }
+        }
+
+        // 更新所有便利貼索引
+        function updateAllNotesIndexes() {
+            const notes = document.querySelectorAll('.note');
+            notes.forEach((note, index) => {
+                updateNoteInfo(note, index + 1);
+            });
+        }
+
+        // 垃圾桶拖曳事件
+        trashBin.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            trashBin.classList.add('drag-over');
+        });
+
+        trashBin.addEventListener('dragleave', () => {
+            trashBin.classList.remove('drag-over');
+        });
+
+        trashBin.addEventListener('drop', (e) => {
+            e.preventDefault();
+            trashBin.classList.remove('drag-over');
+            const draggedNote = document.querySelector('.note.dragging');
+            if (draggedNote) {
+                deleteNote(draggedNote);
+            }
+        });
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
