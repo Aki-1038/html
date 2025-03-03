@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動態趨勢圖展示</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            padding: 20px;
+        }
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">動態趨勢圖展示</h1>
+        <p>這個頁面展示了如何使用 Chart.js 庫來繪製動態趨勢圖。圖表會隨著時間自動更新，模擬實時數據的變化。</p>
+        <canvas id="trendChart"></canvas>
+    </div>
+
+    <script>
+        // 獲取畫布上下文
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        // 創建 Chart.js 圖表
+        const trendChart = new Chart(ctx, {
+            type: 'line', // 圖表類型為折線圖
+            data: {
+                labels: [], // X 軸標籤
+                datasets: [{
+                    label: '動態數據', // 數據集標籤
+                    data: [], // 數據集數據
+                    borderColor: 'rgba(75, 192, 192, 1)', // 線條顏色
+                    borderWidth: 2, // 線條寬度
+                    fill: false // 不填充區域
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'linear', // X 軸類型為線性
+                        position: 'bottom' // X 軸位置在底部
+                    }
+                }
+            }
+        });
+
+        let time = 0; // 初始化時間變量
+
+        // 添加數據到圖表
+        function addData(chart, label, data) {
+            chart.data.labels.push(label); // 添加標籤
+            chart.data.datasets.forEach((dataset) => {
+                dataset.data.push(data); // 添加數據
+            });
+            chart.update(); // 更新圖表
+        }
+
+        // 從圖表中移除數據
+        function removeData(chart) {
+            chart.data.labels.shift(); // 移除最早的標籤
+            chart.data.datasets.forEach((dataset) => {
+                dataset.data.shift(); // 移除最早的數據
+            });
+            chart.update(); // 更新圖表
+        }
+
+        // 更新圖表數據
+        function updateChart() {
+            time += 1; // 時間遞增
+            const newData = Math.random() * 100; // 生成隨機數據
+            addData(trendChart, time, newData); // 添加新數據到圖表
+
+            // 如果圖表數據超過 20 個，移除最早的數據
+            if (trendChart.data.labels.length > 20) {
+                removeData(trendChart);
+            }
+        }
+
+        // 每秒更新一次圖表
+        setInterval(updateChart, 1000);
+    </script>
+</body>
+</html>
